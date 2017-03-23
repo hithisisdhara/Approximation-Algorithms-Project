@@ -1,0 +1,17 @@
+# write ford fulkerson
+# find path from a point to other 
+from itertools import permutations
+def generate_all(total,k):
+    # we want to genearate a bipartite graph with both sodes having "total" many elements 
+    left = [x for x in range(1,total+1)]
+    right = left 
+    # list of all the possible egdges 
+    alledges = []
+    for l in left:
+        for r in right:
+            alledges.append((l,r))
+    # so thre are total^2 may edges in alledges. we want to choose k edges from these edges at a time.
+    #print alledges
+    return list(permutations(alledges,k))
+#note that the number of graphs that this algorithm generates is too high. say for a 5x5 bipartite graph, k = 1 to 5 will have roughly 2^25 graphs. 
+def findpath(s,t,V,E):
