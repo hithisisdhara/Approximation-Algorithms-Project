@@ -15,24 +15,26 @@ def generate_all(total,k):
     return list(permutations(alledges,k))
 #note that the number of graphs that this algorithm generates is too high. say for a 5x5 bipartite graph, k = 1 to 5 will have roughly 2^25 graphs. 
 from collections import defaultdict
+from collections import defaultdict
 class graph:
     def __init__(self,edges=None,weights=None):
         self.flow = 0
-        self.edges = edges
+        #self.edges = edges
         vertices = set()
-        for s,t in self.edges:
+        for s,t in edges:
             vertices.add(s)
             vertices.add(t)
         self.vertices = vertices
         self.weights = defaultdict(int)
         if not weights:
-            weights = [1 for x in range(len(self.edges))]
-        for i,edge in enumerate(self.edges):
+            weights = [1 for x in range(len(edges))]
+        for i,edge in enumerate(edges):
             self.weights[edge]=weights[i]
     def neighbors(self,v):
         # traverses all the edges at least once. Assumption is that the graph is sparse 
         nbhd=set()
-        for s,t in self.edges:
+        #for s,t in self.edges:
+        for s,t in self.weights.keys():
             if s == v:
                 nbhd.add(t)
         return list(nbhd)
@@ -82,22 +84,39 @@ class graph:
         self.flow += bn
         # now that we have the bottleneck flow, we augument each forward edge by sbtracting the bn flow from original flow and put a reverse edge of bn value. 
         for i in range(len(path)-1):
-            self.edges.append((path[i+1],path[i]))
-            self.weights[(path[i+1],path[i])] = bn
+            #self.edges.append((path[i+1],path[i]))
+            self.weights[(path[i+1],path[i])] += bn
             nw = self.weights[(path[i],path[i+1])] - bn
             if nw == 0:
                 del self.weights[(path[i],path[i+1])]
-                self.edges.remove((path[i],path[i+1]))
+                #self.edges.remove((path[i],path[i+1]))
             else:
                 self.weights[(path[i],path[i+1])] = nw
-def maxflow(s,t,g):
-    while True:
-        try:
-            visited = g.all_unvisited()
-            path = g.findpath(s,t,visited,[])
-            if not path:
-                return g.flow
-            else:
-                g.augment(path)
-        except:
-            break
+    def mincut(self,s,t):
+        while True:
+            try:
+                visited = self.all_unvisited()
+                path = self.findpath(s,t,visited,[])
+                if not path:
+                    #return self.flow
+                    return self.connected_component(s)
+                else:
+                    self.augment(path)
+            except:
+                break
+    def connected_component(self,s):# BFS from source s, return that and its complement 
+        visited = self.all_unvisited()
+        S = {s}
+        visited[s]= True
+        nbhd = self.neighbors(s)
+        while nbhd:
+            i = nbhd[0]
+            nbhd = nbhd[1:]
+            if not visited[i]:
+                visited[i]=True
+                S.add(i)
+                nbhd.extend(self.neighbors(i))
+        yield S, self.vertices - S
+    def trydensity(self,d):
+        # d is the density that I am trying in the goldberg's algo for densest subgraph 
+        # so far the graph has been built with the edges weighted as 1, and now we add additional source and sink to this graph 
