@@ -14,4 +14,90 @@ def generate_all(total,k):
     #print alledges
     return list(permutations(alledges,k))
 #note that the number of graphs that this algorithm generates is too high. say for a 5x5 bipartite graph, k = 1 to 5 will have roughly 2^25 graphs. 
-def findpath(s,t,V,E):
+from collections import defaultdict
+class graph:
+    def __init__(self,edges=None,weights=None):
+        self.flow = 0
+        self.edges = edges
+        vertices = set()
+        for s,t in self.edges:
+            vertices.add(s)
+            vertices.add(t)
+        self.vertices = vertices
+        self.weights = defaultdict(int)
+        if not weights:
+            weights = [1 for x in range(len(self.edges))]
+        for i,edge in enumerate(self.edges):
+            self.weights[edge]=weights[i]
+    def neighbors(self,v):
+        # traverses all the edges at least once. Assumption is that the graph is sparse 
+        nbhd=set()
+        for s,t in self.edges:
+            if s == v:
+                nbhd.add(t)
+        return list(nbhd)
+    
+    def all_unvisited(self):
+        visited = defaultdict(bool)
+        for v in self.vertices:
+            visited[v]=False
+        return visited 
+    
+    def findpath(self,u,v,visited,path):
+        # visited is a dictionay with all vertices, True for visited so far. Classic BFS
+        #path is a list 
+        visited[u]=True
+        if u == v:
+            path.append(u)
+            return path
+        nbhd = self.neighbors(u)
+        # list all unvisited neighbors 
+        if not nbhd:
+            return []
+        unvisited = set()
+        for n in nbhd: 
+            if not visited[n]:
+                unvisited.add(n)
+        if not unvisited:
+            return []
+        #print unvisited
+        for n in list(unvisited):
+            tmp = self.findpath(n,v,visited,[u])
+            #print tmp
+            if tmp:
+                #print path,tmp
+                path.extend(tmp)
+                return path
+        # none of my unvisited neighbors lead to end
+        return []
+    def augment(self,path):
+        #path is a list of vertices, with path[0]=source and path[-1]=sink
+        # find the bottleneck
+        bn = float('inf')#stands for bottleneck
+        for i in range(len(path)-1):
+            w = self.weights[(path[i],path[i+1])]
+            if w < bn:
+                bn = w
+        # add bn to flow
+        self.flow += bn
+        # now that we have the bottleneck flow, we augument each forward edge by sbtracting the bn flow from original flow and put a reverse edge of bn value. 
+        for i in range(len(path)-1):
+            self.edges.append((path[i+1],path[i]))
+            self.weights[(path[i+1],path[i])] = bn
+            nw = self.weights[(path[i],path[i+1])] - bn
+            if nw == 0:
+                del self.weights[(path[i],path[i+1])]
+                self.edges.remove((path[i],path[i+1]))
+            else:
+                self.weights[(path[i],path[i+1])] = nw
+def maxflow(s,t,g):
+    while True:
+        try:
+            visited = g.all_unvisited()
+            path = g.findpath(s,t,visited,[])
+            if not path:
+                return g.flow
+            else:
+                g.augment(path)
+        except:
+            break
