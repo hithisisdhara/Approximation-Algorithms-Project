@@ -1,0 +1,65 @@
+from collections import defaultdict
+import random
+from itertools import combinations
+class graph:
+    def __init__(self, n,m=0,num_inputs=0):
+        # builds a connected graph of n-1 edges + adds random m-n+1 edges to it 
+        # n = number of vertices
+        # m = number of edges. The goal is to generate a connected graph, so m >= n-1.Ideally, m <=n(n-1)/4
+        # we will have 20% of edges in inputs and 80% of paths that have more than 1 hops . Ofcourse num_inputs <= (n-1)n/2
+        self.vertices = n
+        self.edges = self.minimal_connected_graph()
+        self.inputs = self.add_more_edges_generate_inputs(m,num_inputs)
+
+    def generate_random_permutation(self):
+        l = range(1,self.vertices+1)
+        random.shuffle(l) 
+        return l
+    def minimal_connected_graph(self):
+        l = self.generate_random_permutation()
+        #This is parent-child order. Now we randomly generate degrees of a few nodes so that we can generate a spanning tree. 
+        # we know that given n vertices, we need to insert n-1 edges to make it connected 
+        edges = defaultdict(bool)
+        root,last,count = 0,0,0 # indices of the elements in the list, root is the element we are guessing the degree of, and last is the last element that got put into the
+        #spanning tree. We make sure that last doesnot go beyond n-1, the last vertex 
+        max_degree = ((self.vertices-1)/2)-1 # this si a concious choice that I am making
+        while count< self.vertices-1:
+            # guess the degree of the root 
+            deg = random.randint(1,max_degree)
+            for step in range(deg):
+                last += 1
+                if last < self.vertices:
+                    tup = (l[root],l[last]) if l[root]< l[last] else (l[last],l[root])
+                    edges[tup] = True
+                    # Hence it is a convension that we write the small element on the left and larg one on right. 
+                    count+= 1 
+                else:
+                    return edges
+            root += 1 
+        return edges
+    def add_more_edges_generate_inputs(self,m,nips):
+        k = m-self.vertices+1
+        l = list(combinations(range(1,self.vertices+1),2)) # all possible edges in given graph 
+        #delete all existing edges from this list 
+        for edge in self.edges.keys():
+            l.remove(edge)
+        if k > 0:
+            for _ in range(k):
+                # choose a random index of l, ie a random edge, that we know doesn't exist in the graph 
+                i = random.randint(0,len(l)-1)
+                self.edges[l[i]]=True
+                del l[i]
+        # self.edges contains all 1 hop paths, and l contains all more than one hop paths. We want to choose 80% paths that are more than 1 hop, and 20% paths that are one hop 
+        nips = min(nips,(self.vertices*self.vertices - self.vertices)/2)
+        big = (nips*8)/10 #A concious choice that I am making, you can change this 
+        paths =[]
+        for _ in range(big):
+            i = random.randint(0,len(l)-1)
+            paths.append(l[i])
+            del l[i]
+        edges = random.sample(self.edges.keys(),nips-big)
+        paths.extend(edges)
+        return paths 
+# Example:
+g = graph(10,20,25)
+print g.edges.keys(),len(g.edges.keys()),g.inputs,len(g.inputs)
