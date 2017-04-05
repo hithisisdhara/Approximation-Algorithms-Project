@@ -1,0 +1,67 @@
+'''
+# Input: adjecency list of vertices
+# output: dictionary of vertex:cmap value of its color between 0 and 1, and 
+# "total_colors": maximum nimber of colors to color this graph 
+sample input: {1: set([2, 10, 5, 6]), 2: set([8, 1, 4, 5]), 3: set([9, 10, 7]), 4: set([2]), 5: set([1, 2]), 6: set([9, 1, 7]), 7: set([9, 3, 6]), 8: set([9, 2, 10]), 9: set([8, 3, 6, 7]), 10: set([8, 1, 3])})
+sample output: defaultdict(int,
+            {1: 1.0,
+             2: 0.5,
+             3: 1.0,
+             4: 1.0,
+             5: 0.3333333333333333,
+             6: 0.5,
+             7: 0.25,
+             8: 1.0,
+             9: 0.3333333333333333,
+             10: 0.5,
+             'total_colors': 4})
+'''
+
+
+def graph_coloring(adj_list):
+    # assume that adj_list is int:set, the vertices are marked from 1 to len(adj_list)
+    total_colors = 0
+    all_vertices = set(adj_list.keys())
+    colors = defaultdict(int)
+    colors_adj_list = defaultdict(set)
+    # since this is defaultdict, it would return 0 and empty set if the emements are not present in the dict for the keys!
+    # also, I am always given a connected graph hence 
+    # Algorithm in a nutshell:
+    # http://www.geeksforgeeks.org/graph-coloring-set-2-greedy-algorithm/
+    queue = deque([min(adj_list.keys())])
+    while queue:
+        c = queue.popleft()
+        if not colors[c]:
+            # this guy is not colored
+            pick = sorted(list(all_vertices - colors_adj_list[c]))[0]
+            colors[c] = pick
+            total_colors = pick if total_colors < pick else total_colors
+            for neighbor in adj_list[c]:
+                if not colors[neighbor]:
+                    # if this guy is not colored yet
+                    colors_adj_list[neighbor].add(pick)
+                    queue.append(neighbor)
+    for vertex in colors.keys():
+        colors[vertex]=1/float(colors[vertex])
+    colors["total_colors"] = total_colors
+    return colors
+'''
+Test this with: 
+''' 
+import networkx as nx
+import matplotlib.pyplot as plt
+def draw_graph(edges_list, values_map = None):
+    G=nx.Graph()
+    G.add_edges_from(edges_list)
+    if not values_map:
+        nx.draw(G,with_labels = True,node_color='Aqua')
+    else:
+        values = [values_map[node] for node in G.nodes()]
+        nx.draw(G, cmap=plt.get_cmap('cool'), node_color=values,with_labels = True)
+    plt.show()
+    '''
+    Note: don't forget to pip install networkx and matplotlib first!
+    sample test case:
+    g = graph(10,15,10)
+    draw_graph(g.edges,graph_coloring(g.adj_list))
+    '''
