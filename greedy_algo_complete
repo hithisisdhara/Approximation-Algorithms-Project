@@ -1,0 +1,199 @@
+# THE GRAPH: I haven't included Sheldon's version, you all can do it 
+from collections import defaultdict
+from collections import deque
+import random
+from itertools import combinations
+
+class graph:
+    def __init__(self, n,m=0,num_inputs=0):
+        # builds a connected graph of n-1 edges + adds random m-n+1 edges to it 
+        # n = number of vertices
+        # m = number of edges. The goal is to generate a connected graph, so m >= n-1.Ideally, m <=n(n-1)/4
+        # we will have 20% of edges in inputs and 80% of paths that have more than 1 hops . Ofcourse num_inputs <= (n-1)n/2
+        self.vertices = n
+        self.edges = self.minimal_connected_graph()
+        self.inputs = self.add_more_edges_generate_inputs(m,num_inputs)
+        self.adj_list = self.adjacency_list()
+    def generate_random_permutation(self):
+        l = range(1,self.vertices+1)
+        random.shuffle(l) 
+        return l
+    def minimal_connected_graph(self):
+        l = self.generate_random_permutation()
+        #This is parent-child order. Now we randomly generate degrees of a few nodes so that we can generate a spanning tree. 
+        # we know that given n vertices, we need to insert n-1 edges to make it connected 
+        edges = defaultdict(bool)
+        root,last,count = 0,0,0 # indices of the elements in the list, root is the element we are guessing the degree of, and last is the last element that got put into the
+        #spanning tree. We make sure that last doesnot go beyond n-1, the last vertex 
+        max_degree = ((self.vertices-1)/2)-1 # this si a concious choice that I am making
+        while count< self.vertices-1:
+            # guess the degree of the root 
+            deg = random.randint(1,max_degree)
+            for step in range(deg):
+                last += 1
+                if last < self.vertices:
+                    tup = (l[root],l[last]) if l[root]< l[last] else (l[last],l[root])
+                    edges[tup] = True
+                    # Hence it is a convension that we write the small element on the left and larg one on right. 
+                    count+= 1 
+                else:
+                    return edges
+            root += 1 
+        return edges
+    def add_more_edges_generate_inputs(self,m,nips):
+        k = m-self.vertices+1
+        l = list(combinations(range(1,self.vertices+1),2)) # all possible edges in given graph 
+        #delete all existing edges from this list 
+        for edge in self.edges.keys():
+            l.remove(edge)
+        if k > 0:
+            for _ in range(k):
+                # choose a random index of l, ie a random edge, that we know doesn't exist in the graph 
+                i = random.randint(0,len(l)-1)
+                self.edges[l[i]]=True
+                del l[i]
+        # self.edges contains all 1 hop paths, and l contains all more than one hop paths. We want to choose 80% paths that are more than 1 hop, and 20% paths that are one hop 
+        nips = min(nips,(self.vertices*self.vertices - self.vertices)/2)
+        big = (nips*8)/10 #A concious choice that I am making, you can change this 
+        paths =[]
+        for _ in range(big):
+            i = random.randint(0,len(l)-1)
+            paths.append(l[i])
+            del l[i]
+        edges = random.sample(self.edges.keys(),nips-big)
+        paths.extend(edges)
+        return paths 
+    def all_unvisited(self):
+        visited = defaultdict(int)
+        for v in range(1,self.vertices+1):
+            visited[v]=0 # we know that no vertices start from 0
+        return visited
+    def adjacency_list(self):
+        adj_list = defaultdict(set)
+        for start,end in self.edges:
+            adj_list[start].add(end)
+            adj_list[end].add(start)
+        return adj_list
+    def set_demands(self):
+        pass
+    def add_edge(self,s,t):
+        pass
+    def add_vertex(self,v):
+        pass 
+        
+###########################################################################################
+def shortest_path(graph,start,end):
+        def edges_from_path(path):
+            if len(path)<=1:
+                return path
+            edges = []
+            for i in range(len(path)-1):
+                edges.append((path[i],path[i+1]))
+            return edges 
+        pending =  deque([start])
+        visited = graph.all_unvisited()
+        path = []
+        while pending:
+            current = pending.popleft()
+            if current == end:
+                # track back all the neighbors 
+                while current != start:
+                    path.append(current)
+                    current = visited[current]
+                path.append(current)
+                path.reverse()
+                return edges_from_path(path)
+            for neighbor in graph.adj_list[current]:
+                if visited[neighbor] == 0:
+                    visited[neighbor] = current
+                    pending.append(neighbor)
+        return edges_from_path(path)
+        
+ def graph_coloring(adj_list):
+    # assume that adj_list is int:set, the vertices are marked from 1 to len(adj_list)
+    total_colors = 0
+    all_vertices = set(adj_list.keys())
+    colors = defaultdict(int)
+    colors_adj_list = defaultdict(set)
+    # since this is defaultdict, it would return 0 and empty set if the emements are not present in the dict for the keys!
+    # Algorithm in a nutshell:
+    # http://www.geeksforgeeks.org/graph-coloring-set-2-greedy-algorithm/
+    queue = deque([min(adj_list.keys())])
+    while queue:
+        c = queue.popleft()
+        if not colors[c]:
+            # this guy is not colored
+            pick = sorted(list(all_vertices - colors_adj_list[c]))[0]
+            colors[c] = pick
+            total_colors = pick if total_colors < pick else total_colors
+            for neighbor in adj_list[c]:
+                if not colors[neighbor]:
+                    # if this guy is not colored yet
+                    colors_adj_list[neighbor].add(pick)
+                    queue.append(neighbor)
+        if not queue:
+            for vertex in adj_list.keys():
+                if colors[vertex] == 0:
+                    queue.append(vertex)
+                    break
+    for vertex in colors.keys():
+        colors[vertex]=1/float(colors[vertex])
+    colors["total_colors"] = total_colors
+    return colors 
+#######################################################################################################
+def number_of_different_wavelengths(g):
+    
+    def make_graph_of_demands(g):
+
+        def make_shortest_paths(g):
+            shortestPaths=defaultdict(set)
+            for s,t in g.inputs:
+                shortestPaths[(s,t)] = set(shortest_path(g,s,t))
+            return shortestPaths
+
+        demand_paths = make_shortest_paths(g)
+        #print demand_paths
+
+        #translate_table = defaultdict(tuple)
+        translate = demand_paths.keys() # use indices as back and forth translation 
+
+        adj_list = defaultdict(set)
+
+        for i in range(len(translate)):
+            for j in range(i+1,len(translate)):
+                if i != j and demand_paths[translate[i]].intersection(demand_paths[translate[j]]):
+                    adj_list[i+1].add(j+1)
+                    adj_list[j+1].add(i+1)
+
+        return adj_list
+
+    adj_list = make_graph_of_demands(g)
+    edges = edges_from_adj_list(adj_list)# optional
+    color_map =graph_coloring(adj_list)
+    #draw_graph(edges,color_map) This won't work unless you have some libraries installed 
+    return color_map['total_colors']
+#######################################################################################################
+## USAGE for unit testing only###
+def edges_from_adj_list(adj_list):
+    edges = []
+    for vertex in adj_list:
+        for neighbor in adj_list[vertex]:
+            if vertex < neighbor:
+                edges.append((vertex,neighbor))
+    return edges
+import networkx as nx
+import matplotlib.pyplot as plt
+def draw_graph(edges_list, values_map = None):
+    G=nx.Graph()
+    G.add_edges_from(edges_list)
+    if not values_map:
+        nx.draw(G,with_labels = True,node_color='Aqua')
+    else:
+        values = [values_map[node] for node in G.nodes()]
+        nx.draw(G, cmap=plt.get_cmap('cool'), node_color=values,with_labels = True)
+    plt.show()
+#######################################################################################################
+#testcase
+g = graph(10,15,10)
+draw_graph(g.edges)
+number_of_different_wavelengths(g)
