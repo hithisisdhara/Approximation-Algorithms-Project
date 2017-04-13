@@ -1,0 +1,160 @@
+# Get data out of the file
+def get_edges(line):
+    edges = []
+    line = line.translate(None,"[]")
+    for token in line.split(")"):
+        if token:
+            values = token.split("(")[1].split(",")
+            edges.append((int(values[0]),int(values[1])))
+    return edges 
+# make pairs (g,i)
+data = []
+from collections import defaultdict,deque
+f = open('input.txt','r')
+for line in f:
+    if line != '\n':
+        strings = line.split("]")
+        data.append([get_edges(strings[0]),get_edges(strings[1])])
+f.close()
+class Graph:
+    def __init__(self,edges,requests):
+        self.edges = edges
+        self.inputs = requests 
+        self.adj_list = self.adjacency_list()
+    def adjacency_list(self):
+        adj_list = defaultdict(set)
+        for start,end in self.edges:
+            adj_list[start].add(end)
+            adj_list[end].add(start)
+        return adj_list
+    def all_unvisited(self):
+        visited = defaultdict(int)
+        for v in self.adj_list:
+            visited[v]=0 # we know that no vertices start from 0
+        return visited
+########################################################################
+def shortest_path(graph,start,end):
+        def edges_from_path(path):
+            if len(path)<=1:
+                return path
+            edges = []
+            for i in range(len(path)-1):
+                edges.append((path[i],path[i+1]))
+            return edges 
+        
+        pending =  deque([start])
+        visited = graph.all_unvisited()
+        path = []
+        while pending:
+            current = pending.popleft()
+            if current == end:
+                # track back all the neighbors 
+                while current != start:
+                    path.append(current)
+                    current = visited[current]
+                path.append(current)
+                path.reverse()
+                return edges_from_path(path)
+            
+            for neighbor in graph.adj_list[current]:
+                if visited[neighbor] == 0:
+                    visited[neighbor] = current
+                    pending.append(neighbor)
+        return edges_from_path(path)
+########################################################################    
+def graph_coloring(adj_list):
+    # assume that adj_list is int:set, the vertices are marked from 1 to len(adj_list)
+    total_colors = 0
+    all_vertices = set(adj_list.keys())
+    colors = defaultdict(int)
+    colors_adj_list = defaultdict(set)
+    # since this is defaultdict, it would return 0 and empty set if the emements are not present in the dict for the keys!
+    # Algorithm in a nutshell:
+    # http://www.geeksforgeeks.org/graph-coloring-set-2-greedy-algorithm/
+    if not adj_list:
+        total_colors = 1
+    else: 
+        queue = deque([min(adj_list.keys())])
+        while queue:
+            c = queue.popleft()
+            if not colors[c]:
+                # this guy is not colored
+                pick = sorted(list(all_vertices - colors_adj_list[c]))[0]
+                colors[c] = pick
+                total_colors = pick if total_colors < pick else total_colors
+                for neighbor in adj_list[c]:
+                    if not colors[neighbor]:
+                        # if this guy is not colored yet
+                        colors_adj_list[neighbor].add(pick)
+                        queue.append(neighbor)
+            if not queue:
+                for vertex in adj_list.keys():
+                    if colors[vertex] == 0:
+                        queue.append(vertex)
+                        break
+        for vertex in colors.keys():
+            colors[vertex]=1/float(colors[vertex])
+    colors["total_colors"] = total_colors
+    return colors 
+########################################################################
+def number_of_different_wavelengths(g):
+    
+    def make_graph_of_demands(g):
+
+        def make_shortest_paths(g):
+            shortestPaths=defaultdict(set)
+            for s,t in g.inputs:
+                shortestPaths[(s,t)] = set(shortest_path(g,s,t))
+            return shortestPaths
+
+        demand_paths = make_shortest_paths(g)
+        #print demand_paths
+
+        #translate_table = defaultdict(tuple)
+        translate = demand_paths.keys() # use indices as back and forth translation 
+
+        adj_list = defaultdict(set)
+
+        for i in range(len(translate)):
+            for j in range(i+1,len(translate)):
+                if i != j and demand_paths[translate[i]].intersection(demand_paths[translate[j]]):
+                    adj_list[i+1].add(j+1)
+                    adj_list[j+1].add(i+1)
+
+        return adj_list
+
+    adj_list = make_graph_of_demands(g)
+    #edges = edges_from_adj_list(adj_list)
+    color_map =graph_coloring(adj_list)
+    #draw_graph(edges,color_map)
+    return color_map['total_colors']
+########################################################################
+#f = open('wavelengths_edges_requests',"w")
+for line in data:
+    #print line[0],"\n",line[1]
+    #line[0] is the graph, line[1] is the requests 
+    g = Graph(line[0],line[1])
+    result = str(number_of_different_wavelengths(g))+";"+str(len(g.edges))+";"+str(len(g.inputs))+"\n"
+    #f.write(result)
+    print result
+#f.close()
+########################################################################
+## USAGE for unit testing only###
+def edges_from_adj_list(adj_list):
+    edges = []
+    for vertex in adj_list:
+        for neighbor in adj_list[vertex]:
+            if vertex < neighbor:
+                edges.append((vertex,neighbor))
+    return edges
+import networkx as nx
+import matplotlib.pyplot as plt
+def draw_graph(edges_list, values_map = None):
+    G=nx.Graph()
+    G.add_edges_from(edges_list)
+    if not values_map:
+        nx.draw(G,with_labels = True,node_color='Aqua')
+    else:
+        values = [values_map[node] for node in G.nodes()]
+        nx.draw(G, cmap=plt.get_cmap('cool'), node_color=values,with_labels = True)
+    plt.show()
