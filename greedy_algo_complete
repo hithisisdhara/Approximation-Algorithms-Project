@@ -1,18 +1,18 @@
-# THE GRAPH: I haven't included Sheldon's version, you all can do it 
 from collections import defaultdict
 from collections import deque
 import random
 from itertools import combinations
 
 class graph:
-    def __init__(self, n,m=0,num_inputs=0):
+    def __init__(self, n,m=0):
         # builds a connected graph of n-1 edges + adds random m-n+1 edges to it 
         # n = number of vertices
         # m = number of edges. The goal is to generate a connected graph, so m >= n-1.Ideally, m <=n(n-1)/4
         # we will have 20% of edges in inputs and 80% of paths that have more than 1 hops . Ofcourse num_inputs <= (n-1)n/2
         self.vertices = n
         self.edges = self.minimal_connected_graph()
-        self.inputs = self.add_more_edges_generate_inputs(m,num_inputs)
+        #self.inputs = self.add_more_edges_generate_inputs(m,num_inputs)
+        self.add_more_edges(m)
         self.adj_list = self.adjacency_list()
     def generate_random_permutation(self):
         l = range(1,self.vertices+1)
@@ -40,7 +40,7 @@ class graph:
                     return edges
             root += 1 
         return edges
-    def add_more_edges_generate_inputs(self,m,nips):
+    def add_more_edges(self,m):
         k = m-self.vertices+1
         l = list(combinations(range(1,self.vertices+1),2)) # all possible edges in given graph 
         #delete all existing edges from this list 
@@ -51,18 +51,31 @@ class graph:
                 # choose a random index of l, ie a random edge, that we know doesn't exist in the graph 
                 i = random.randint(0,len(l)-1)
                 self.edges[l[i]]=True
-                del l[i]
-        # self.edges contains all 1 hop paths, and l contains all more than one hop paths. We want to choose 80% paths that are more than 1 hop, and 20% paths that are one hop 
-        nips = min(nips,(self.vertices*self.vertices - self.vertices)/2)
-        big = (nips*8)/10 #A concious choice that I am making, you can change this 
-        paths =[]
-        for _ in range(big):
-            i = random.randint(0,len(l)-1)
-            paths.append(l[i])
-            del l[i]
-        edges = random.sample(self.edges.keys(),nips-big)
-        paths.extend(edges)
-        return paths 
+                del l[i] 
+                if not l:
+                    return
+    def generate_inputs(self,nips):
+        l = list(combinations(range(1,self.vertices+1),2)) # all possible edges in given graph 
+        nips = min(nips,len(l))
+        if nips == len(l):
+            return l
+        inputs = []
+        edges = self.edges.keys()
+        for edge in edges:
+            l.remove(edge) #all 2 or more hops
+        while nips:
+            i = random.randint(1,10)
+            if i > 2 and l:
+                #choose element from l randomly 
+                c = random.randint(0,len(l)-1)
+                inputs.append(l[c])
+                del l[c]
+            else:
+                c = random.randint(0,len(edges)-1)
+                inputs.append(edges[c])
+                del edges[c]
+            nips -=1 
+        return inputs
     def all_unvisited(self):
         visited = defaultdict(int)
         for v in range(1,self.vertices+1):
@@ -79,7 +92,11 @@ class graph:
     def add_edge(self,s,t):
         pass
     def add_vertex(self,v):
-        pass 
+        pass
+
+# example:
+g = graph(10,20)
+print g.generate_inputs(40)
         
 ###########################################################################################
 def shortest_path(graph,start,end):
